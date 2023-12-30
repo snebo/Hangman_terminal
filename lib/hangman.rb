@@ -1,61 +1,50 @@
 # frozen_string_literal: true
 
-#hamgman game class. handles everything in this program
+require 'json'
+module Saving 
+
+  def quick_save(message)
+    Dir.mkdir('Game_saves') unless Dir.exist?('Game_saves')
+    t= Time.new
+    save_time = t.strftime("%Y-%m-%d %H:%M:%S")
+    filename = "Game_saves/Hangman_#{save_time}.txt"
+    File.open(filename, 'w') do |file|
+      file.puts message
+    end
+  end
+
+  def as_json(options = {})
+    # converts to hash
+    {
+      name: @name,
+      score: @score,
+      guess_count: @guess_count,
+      playing: @playing,
+      display_word: @display_word
+    }
+  end
+
+  def to_json(*options)
+    # converts to json
+    as_json(*options).to_json(*options)
+  end 
+end
+
+# hamgman game class. handles everything in this program
 class Hangman
+  attr_accessor :playing, :name, :score, :guess_count, :display_word
+
   def initialize(name)
     @name = name
     @score = 0
     @guess_count = 10
     @playing = true
+    @display_word = ''
 
     create_dictionary
   end
 
-  def play
-    ready =''
-    until ready == 'y' || ready == 'n'
-      print "Welcome to Hang-man #{@name}, start game (y,n)? > "
-      ready = gets.chomp.downcase.chr
-    end
-    ready == 'y' ? @playing = true : @playing = false 
-    while @playing
-      play_round
-    end
-    p 'Thanks for trying, see you again...'
-  end
-
-  private
-
-  def select_secret_word(words)
-    word = words[rand(0..(words.length-1))]
-    word.length > 4 && word.length < 13 ? word : select_secret_word(words)
-  end
-
-  def guess_chr
-    guess = ''
-    unless ('a'..'z').include?(guess)
-      print 'Guess a letter -> '
-      gets.chomp.downcase.chr
-    end
-  end
-
-  def create_dictionary
-    begin 
-      @word_bank = File.read('google-10000-english-no-swears.txt').split("\n")
-    rescue # returns empty if not found
-      @word_bank = Arrya.new(1, 'empty')
-      p 'The dictionary file does not exist'
-    end
-  end
-
-  def draw_game
-    system('clear') || system('cls')
-    puts "\nPlayer score: #{score} "
-    puts "Guesses remaining: #{@guess_count}\n\n"
-
-    @display_word.each { |i| print "#{i} " }
-    puts "\n\n"
-  end
+  include Saving
 
   def play_round
     secret_word = select_secret_word(@word_bank)
@@ -99,9 +88,54 @@ class Hangman
       @playing = false
     end
   end
+
+  private
+
+  def select_secret_word(words)
+    word = words[rand(0..(words.length-1))]
+    word.length > 4 && word.length < 13 ? word : select_secret_word(words)
+  end
+
+  def guess_chr
+    guess = ''
+    unless ('a'..'z').include?(guess)
+      print 'Guess a letter -> '
+      gets.chomp.downcase.chr
+    end
+  end
+
+  def create_dictionary
+    begin 
+      @word_bank = File.read('google-10000-english-no-swears.txt').split("\n")
+    rescue # returns empty if not found
+      @word_bank = Arrya.new(1, 'empty')
+      p 'The dictionary file does not exist'
+    end
+  end
+
+  def draw_game
+    system('clear') || system('cls')
+    puts "\nPlayer score: #{score} "
+    puts "Guesses remaining: #{@guess_count}\n\n"
+
+    @display_word.each { |i| print "#{i} " }
+    puts "\n\n"
+  end
 end
 
 print 'Hi, enter your name > '
 name = gets.chomp
 hm = Hangman.new(name)
-hm.play
+ready = ''
+until ready == 'y' || ready == 'n'
+  print "Welcome to Hang-man #{@name}, start game (y,n)? > "
+  ready = gets.chomp.downcase.chr
+end
+ready == 'y' ? hm.playing = true : hm.playing = false 
+while hm.playing
+  hm.play_round
+  puts 'Do you want to save your progress?'
+  reply = gets.chomp.chr
+  hm.quick_save(hm.to_json) if reply == 'y'
+end
+p 'Thanks for trying, see you again...'
