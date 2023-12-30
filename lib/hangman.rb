@@ -125,6 +125,8 @@ end
 
 print 'Hi, enter your name > '
 name = gets.chomp
+
+puts 'would you like to load a save?'
 hm = Hangman.new(name)
 ready = ''
 until ready == 'y' || ready == 'n'
