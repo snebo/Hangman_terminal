@@ -1,33 +1,41 @@
 # frozen_string_literal: true
 
 require 'json'
+
 module Saving 
 
   def quick_save(message)
     Dir.mkdir('Game_saves') unless Dir.exist?('Game_saves')
-    t= Time.new
-    save_time = t.strftime("%Y-%m-%d %H:%M:%S")
-    filename = "Game_saves/Hangman_#{save_time}.txt"
+    # t= Time.new
+    # save_time = t.strftime("%Y-%m-%d %H:%M:%S")
+    # filename = "Game_saves/Hangman_#{save_time}.txt"
+    filename = 'Game_saves/Hangman_save.txt'
     File.open(filename, 'w') do |file|
       file.puts message
     end
   end
 
-  def as_json(options = {})
+  def to_json
     # converts to hash
-    {
+    JSON.dump({
       name: @name,
       score: @score,
       guess_count: @guess_count,
       playing: @playing,
       display_word: @display_word
-    }
+    })
   end
 
-  def to_json(*options)
-    # converts to json
-    as_json(*options).to_json(*options)
-  end 
+  def load_file
+    file = File.read('./Game_saves/Hangman_save.txt')
+
+    data = JSON.parse file
+    @name = data['name']
+    @score = data['score']
+    @guess_count = data['guess_count']
+    @playing = data['playing']
+    @display_word = data['display_word']
+  end
 end
 
 # hamgman game class. handles everything in this program
@@ -72,7 +80,7 @@ class Hangman
 
       if @guess_count <= 0
         playing_round = false
-        puts "Out of guesses, you failed to guess the word '#{@secret_word}"
+        puts "Out of guesses, you failed to guess the word #{secret_word}"
       elsif !@display_word.include?('_')
         playing_round = false
         @score += 1
@@ -115,7 +123,7 @@ class Hangman
 
   def draw_game
     system('clear') || system('cls')
-    puts "\nPlayer score: #{score} "
+    puts "\nPlayer(#{@name}) score: #{score} "
     puts "Guesses remaining: #{@guess_count}\n\n"
 
     @display_word.each { |i| print "#{i} " }
@@ -125,15 +133,18 @@ end
 
 print 'Hi, enter your name > '
 name = gets.chomp
-
-puts 'would you like to load a save?'
 hm = Hangman.new(name)
+puts 'would you like to load a save?'
+reply = gets.chomp.chr
+hm.load_file if reply == 'y'
+
 ready = ''
 until ready == 'y' || ready == 'n'
-  print "Welcome to Hang-man #{@name}, start game (y,n)? > "
+  print "Welcome to Hang-man #{hm.name}, start game (y,n)? > "
   ready = gets.chomp.downcase.chr
 end
 ready == 'y' ? hm.playing = true : hm.playing = false 
+hm.score = 10
 while hm.playing
   hm.play_round
   puts 'Do you want to save your progress?'
