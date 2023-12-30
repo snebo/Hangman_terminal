@@ -72,7 +72,7 @@ class Hangman
 
       if @guess_count <= 0
         playing_round = false
-        puts 'Out of guesses, you failed to guess the word'
+        puts "Out of guesses, you failed to guess the word '#{@secret_word}"
       elsif !@display_word.include?('_')
         playing_round = false
         @score += 1
