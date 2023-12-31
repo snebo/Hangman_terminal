@@ -1,1 +1,0 @@
-{"name":"thor","score":1,"guess_count":10,"playing":true,"display_word":["e","d","i","t","i","n","g"]}
