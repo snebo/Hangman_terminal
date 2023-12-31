@@ -1,154 +1,180 @@
-# frozen_string_literal: true
+# Find more by snebo -> https://github.com/snebo/
+# freeze_string_literal: true
 
 require 'json'
 
-module Saving 
-
-  def quick_save(message)
-    Dir.mkdir('Game_saves') unless Dir.exist?('Game_saves')
-    # t= Time.new
-    # save_time = t.strftime("%Y-%m-%d %H:%M:%S")
-    # filename = "Game_saves/Hangman_#{save_time}.txt"
-    filename = 'Game_saves/Hangman_save.txt'
-    File.open(filename, 'w') do |file|
-      file.puts message
-    end
-  end
-
-  def to_json
-    # converts to hash
-    JSON.dump({
-      name: @name,
-      score: @score,
-      guess_count: @guess_count,
-      playing: @playing,
-      display_word: @display_word
-    })
-  end
-
-  def load_file
-    file = File.read('./Game_saves/Hangman_save.txt')
-
-    data = JSON.parse file
-    @name = data['name']
-    @score = data['score']
-    @guess_count = data['guess_count']
-    @playing = data['playing']
-    @display_word = data['display_word']
-  end
-end
-
-# hamgman game class. handles everything in this program
+# Create and manage the hangman game
 class Hangman
-  attr_accessor :playing, :name, :score, :guess_count, :display_word
+  attr_writer :name, :score, :guess_count, :secret_word, :display_word, :guessed_letters,
+              :playing
 
-  def initialize(name)
-    @name = name
+  def initialize
+    @name = ''
     @score = 0
-    @guess_count = 10
-    @playing = true
+    @guess_count = 12
+    @secret_word = ''
     @display_word = ''
-
+    @guessed_letters = []
+    @playing = true
+    @loaded = false
     create_dictionary
   end
 
-  include Saving
+  def create_dictionary
+    @wordbank = File.read('google-10000-english-no-swears.txt').split("\n")
+  rescue StandardError
+    @wordbank = Array.new(1, 'empty')
+    puts 'Error: File not found'
+  end
 
-  def play_round
-    secret_word = select_secret_word(@word_bank)
-    @display_word = Array.new(secret_word.length, '_')
-    playing_round = true
-    guess = ''
-    draw_game
+  def choose_secret_word(dict)
+    word = dict[rand(0..dict.length - 1)]
+    # making sure the words used are 5-12 letters long
+    word.length > 4 && word.length < 13 ? word.downcase : choose_secret_word(dict)
+  end
 
-    while playing_round
-      guess = guess_chr
-      switched = false
-
-      secret_word.split('').each_with_index do |val, i|
-        if guess == val && !switched && @display_word[i] == '_'
-          @display_word[i] = val
-          @guess_count += 1
-          switched = true 
-        end
-      end
-      @guess_count -= 1
-
-      puts "word: #{@display_word}"
-
-      draw_game
-
-      if @guess_count <= 0
-        playing_round = false
-        puts "Out of guesses, you failed to guess the word #{secret_word}"
-      elsif !@display_word.include?('_')
-        playing_round = false
-        @score += 1
-        puts "You guessed the word with #{@guess_count}guesses left"
-      end
-
-    end
-    print "\nDo you want to play another round(y,n)? > "
-    reply = gets.chomp.downcase.chr
-    if reply == 'y'
-      @guess_count = 10
+  def play_hangman
+    puts 'Welcome to Hangman!'
+    print 'would you like to load a save? (y/n) -> '
+    answer = gets.chomp
+    if answer == 'y'
+      load_game
     else
-      @playing = false
+      print 'Enter your name ->'
+      answer = gets.chomp
+      @name = answer
     end
+    play_round while @playing
+    puts 'Thanks for playing!'
   end
 
-  private
-
-  def select_secret_word(words)
-    word = words[rand(0..(words.length-1))]
-    word.length > 4 && word.length < 13 ? word : select_secret_word(words)
-  end
-
-  def guess_chr
+  def get_guess
     guess = ''
     unless ('a'..'z').include?(guess)
       print 'Guess a letter -> '
-      gets.chomp.downcase.chr
+      guess = gets.chomp.downcase
+    end
+    if guess == 'save'
+      save_game # save game
+      '!'
+    else
+      guess
     end
   end
 
-  def create_dictionary
-    begin 
-      @word_bank = File.read('google-10000-english-no-swears.txt').split("\n")
-    rescue # returns empty if not found
-      @word_bank = Arrya.new(1, 'empty')
-      p 'The dictionary file does not exist'
+  def check_guess(letter)
+    switched = false
+    found = true
+    @secret_word.split('').each_with_index do |char, index|
+      if letter == char && !switched && @display_word[index] == '_'
+        @display_word[index] = char
+        switched = true
+        @guess_count += 1
+      else
+        found = false
+      end
+    end
+    if !found && !switched && letter != 'save' && !@guessed_letters.include?(letter)
+      @guessed_letters << letter 
     end
   end
 
-  def draw_game
-    system('clear') || system('cls')
-    puts "\nPlayer(#{@name}) score: #{score} "
-    puts "Guesses remaining: #{@guess_count}\n\n"
+  def save_game
+    info = JSON.dump({
+                       name: @name,
+                       score: @score,
+                       guess_count: @guess_count,
+                       secret_word: @secret_word,
+                       display_word: @display_word,
+                       guessed_letters: @guessed_letters,
+                       playing: @playing
+                     })
 
+    Dir.mkdir('Save_files') unless Dir.exist?('Save_files')
+    File.open("./Save_files/#{@name}.json", 'w') do |f|
+      f.puts info
+    end
+  end
+
+  def load_game
+    list = Dir['Save_files/*']
+    list.each { |i| i.gsub!('.json', '').gsub!('Save_files/', '') }
+    puts list
+
+    print "\nEnter the name of your save -> "
+    name = gets.chomp
+    if File.exist?("Save_files/#{name}.json")
+      save = File.read("Save_files/#{name}.json")
+
+      info = JSON.parse(save)
+      @name = info['name']
+      @score = info['score']
+      @guess_count = info['guess_count']
+      @secret_word = info['secret_word']
+      @display_word = info['display_word']
+      @guessed_letters = info['guessed_letters']
+      @playing = info['playing']
+      @loaded = true
+
+      puts "Welcome back #{@name}!"
+    end
+  end
+
+  def draw_board
+    spaces = ' ' * 20
+    system('clear') || system('clc')
+    puts 'Hangman game'
+    puts '--------------------------------'
+    puts "type 'save' to save the game"
+    puts "Player: #{@name}\nScore: #{@score}" + spaces + "Guesses left: #{@guess_count}"
+    print "wrong guesses: #{@guessed_letters}\n\n"
     @display_word.each { |i| print "#{i} " }
     puts "\n\n"
   end
+
+  def round_over?
+    if @guess_count == 0
+      puts "out of guesses! The word was #{@secret_word}"
+      @guess_count = 12
+      false
+    elsif !@display_word.include?('_')
+      @score += 1
+      puts "You Guessed the word with #{@guess_count} guesses left!"
+      @guess_count = 12
+      false
+    else
+      true
+    end
+  end
+
+  def play_round
+    # prevent the displayed word and guessed letter from resetting if game is loaded
+    if @loaded
+      @loaded = false
+    else
+      @guessed_letters = []
+      @secret_word = choose_secret_word(@wordbank)
+      @display_word = Array.new(@secret_word.length, '_')
+    end
+    # @secret_word = choose_secret_word(@wordbank)
+    # @display_word = Array.new(@secret_word.length, '_')
+    # @guessed_letters = []
+    playing_round = true
+
+    draw_board
+    while playing_round
+      guess = get_guess
+      check_guess(guess)
+      @guess_count -= 1
+
+      draw_board
+      playing_round = round_over?
+    end
+    puts 'Would you like to play again? (y/n)'
+    answer = gets.chomp.downcase.chr
+    @playing = false if answer == 'n'
+  end
 end
 
-print 'Hi, enter your name > '
-name = gets.chomp
-hm = Hangman.new(name)
-puts 'would you like to load a save?'
-reply = gets.chomp.chr
-hm.load_file if reply == 'y'
-
-ready = ''
-until ready == 'y' || ready == 'n'
-  print "Welcome to Hang-man #{hm.name}, start game (y,n)? > "
-  ready = gets.chomp.downcase.chr
-end
-ready == 'y' ? hm.playing = true : hm.playing = false 
-hm.score = 10
-while hm.playing
-  hm.play_round
-  puts 'Do you want to save your progress?'
-  reply = gets.chomp.chr
-  hm.quick_save(hm.to_json) if reply == 'y'
-end
-p 'Thanks for trying, see you again...'
+hm = Hangman.new
+hm.play_hangman
