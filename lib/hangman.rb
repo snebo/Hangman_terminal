@@ -20,19 +20,6 @@ class Hangman
     create_dictionary
   end
 
-  def create_dictionary
-    @wordbank = File.read('google-10000-english-no-swears.txt').split("\n")
-  rescue StandardError
-    @wordbank = Array.new(1, 'empty')
-    puts 'Error: File not found'
-  end
-
-  def choose_secret_word(dict)
-    word = dict[rand(0..dict.length - 1)]
-    # making sure the words used are 5-12 letters long
-    word.length > 4 && word.length < 13 ? word.downcase : choose_secret_word(dict)
-  end
-
   def play_hangman
     puts 'Welcome to Hangman!'
     print 'would you like to load a save? (y/n) -> '
@@ -46,6 +33,21 @@ class Hangman
     end
     play_round while @playing
     puts 'Thanks for playing!'
+  end
+
+  private
+
+  def create_dictionary
+    @wordbank = File.read('google-10000-english-no-swears.txt').split("\n")
+  rescue StandardError
+    @wordbank = Array.new(1, 'empty')
+    puts 'Error: File not found'
+  end
+
+  def choose_secret_word(dict)
+    word = dict[rand(0..dict.length - 1)]
+    # making sure the words used are 5-12 letters long
+    word.length > 4 && word.length < 13 ? word.downcase : choose_secret_word(dict)
   end
 
   def get_guess
